@@ -1,0 +1,5 @@
+{
+  "name": "Income Verification Analyst",
+  "description": "An application to analyze income-verifying documents (like W-2s, tax returns, etc.) using AI to determine if the customer's income is below 200% of the Federal Poverty Level.",
+  "requestFramePermissions": []
+}
