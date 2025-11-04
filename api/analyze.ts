@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { FEDERAL_POVERTY_LEVELS, FPL_ADDITIONAL_PERSON_AMOUNT } from './constants';
-import type { UploadedFile, AnalysisResult } from "./types";
+import { FEDERAL_POVERTY_LEVELS, FPL_ADDITIONAL_PERSON_AMOUNT } from './constants.js';
+import type { UploadedFile, AnalysisResult } from "./types.js";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // This is a Vercel Serverless Function
