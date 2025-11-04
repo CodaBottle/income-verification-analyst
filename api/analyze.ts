@@ -6,18 +6,28 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // This is a Vercel Serverless Function
 // https://vercel.com/docs/functions/serverless-functions
 export default async function handler(request: VercelRequest, response: VercelResponse) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({ message: 'Method Not Allowed' });
-  }
+  try {
+    console.log('API function started');
 
-  const { files } = request.body;
+    if (request.method !== 'POST') {
+      return response.status(405).json({ message: 'Method Not Allowed' });
+    }
 
-  if (!files || !Array.isArray(files) || files.length === 0) {
-    return response.status(400).json({ message: 'No files provided.' });
-  }
+    const { files } = request.body;
 
-  // Securely initialize GenAI on the server with the API key from environment variables
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return response.status(400).json({ message: 'No files provided.' });
+    }
+
+    console.log('Initializing Gemini AI...');
+
+    // Securely initialize GenAI on the server with the API key from environment variables
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY environment variable is not set');
+      return response.status(500).json({ message: 'API key not configured' });
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
   const fplDataString = JSON.stringify(FEDERAL_POVERTY_LEVELS);
   
@@ -52,7 +62,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
   const textPart = { text: prompt };
 
-  try {
+    console.log('Calling Gemini API...');
     const geminiResponse = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: { parts: [textPart, ...fileParts] },
@@ -77,15 +87,20 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (!geminiResponse.text) {
       throw new Error('No response text from Gemini API');
     }
+
+    console.log('Parsing Gemini response...');
     const jsonText = geminiResponse.text.trim();
     const result = JSON.parse(jsonText);
-    
+
+    console.log('Analysis successful, sending response');
     // Send the successful result back to the frontend
     response.status(200).json(result as AnalysisResult);
 
   } catch (error) {
-    console.error("Gemini API call failed in serverless function:", error);
+    console.error("API function error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Error details:", errorMessage);
     // Send an error response back to the frontend
-    response.status(500).json({ message: "Failed to analyze documents with AI. The model may have had trouble processing the file(s)." });
+    response.status(500).json({ message: `Failed to analyze documents: ${errorMessage}` });
   }
 }
