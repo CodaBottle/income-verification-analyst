@@ -16,7 +16,7 @@ export default async function handler(request, response) {
   }
 
   // Securely initialize GenAI on the server with the API key from environment variables
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
   const fplDataString = JSON.stringify(FEDERAL_POVERTY_LEVELS);
   
