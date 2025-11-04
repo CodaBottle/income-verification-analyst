@@ -1,10 +1,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { FEDERAL_POVERTY_LEVELS, FPL_ADDITIONAL_PERSON_AMOUNT } from '../constants';
 import type { UploadedFile, AnalysisResult } from "../types";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // This is a Vercel Serverless Function
 // https://vercel.com/docs/functions/serverless-functions
-export default async function handler(request, response) {
+export default async function handler(request: VercelRequest, response: VercelResponse) {
   if (request.method !== 'POST') {
     return response.status(405).json({ message: 'Method Not Allowed' });
   }
@@ -73,6 +74,9 @@ export default async function handler(request, response) {
       },
     });
 
+    if (!geminiResponse.text) {
+      throw new Error('No response text from Gemini API');
+    }
     const jsonText = geminiResponse.text.trim();
     const result = JSON.parse(jsonText);
     
