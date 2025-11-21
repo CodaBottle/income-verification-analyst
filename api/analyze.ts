@@ -13,10 +13,14 @@ export default async function handler(request: VercelRequest, response: VercelRe
       return response.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { files } = request.body;
+    const { files, householdSize } = request.body;
 
     if (!files || !Array.isArray(files) || files.length === 0) {
       return response.status(400).json({ message: 'No files provided.' });
+    }
+
+    if (!householdSize || typeof householdSize !== 'number' || householdSize < 1) {
+      return response.status(400).json({ message: 'Valid household size is required.' });
     }
 
     console.log('Initializing Gemini AI...');
@@ -29,14 +33,22 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
-  const fplDataString = JSON.stringify(FEDERAL_POVERTY_LEVELS);
-  
+  // Calculate the FPL and threshold for the provided household size
+  let povertyLevel: number;
+  if (householdSize <= 8) {
+    povertyLevel = FEDERAL_POVERTY_LEVELS[householdSize];
+  } else {
+    povertyLevel = FEDERAL_POVERTY_LEVELS[8] + (FPL_ADDITIONAL_PERSON_AMOUNT * (householdSize - 8));
+  }
+  const povertyThreshold = povertyLevel * 2; // 200% FPL
+
   const prompt = `
     You are an expert financial analyst specializing in verifying income for government assistance programs. Your task is to determine if an applicant's household income is at or below 200% of the Federal Poverty Level (FPL).
 
-    Here are the 2024 FPL guidelines for the 48 contiguous states and D.C.:
-    ${fplDataString}
-    For households with more than 8 persons, add $${FPL_ADDITIONAL_PERSON_AMOUNT} for each additional person.
+    The applicant has indicated their household size is: ${householdSize} person(s).
+
+    Based on the 2024 FPL guidelines for the 48 contiguous states and D.C., the 100% FPL for this household size is: $${povertyLevel.toLocaleString()}
+    The 200% FPL threshold for this household is: $${povertyThreshold.toLocaleString()}
 
     Analyze the provided document(s) and perform the following steps:
     1. Identify the type of document(s) provided (e.g., W-2, 1040 Tax Return, SNAP/TANF benefit letter, pay stub, application form, etc.). If multiple documents are present, list them all.
@@ -45,12 +57,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
        - If a Year-to-Date (YTD) income is provided on a pay stub, annualize it to get a projected annual income. For example, if a pay stub from June 30th shows $25,000 YTD, the projected annual income is approximately $50,000. Use the date of the document to make an accurate projection.
        - In your reasoning, explicitly state whether the self-reported income aligns with the income calculated from the supporting documents. The final income determination must be based on the official documents if there's a discrepancy.
     3. Extract the applicant's final, verified annual gross income. **IMPORTANT: When calculating income, you MUST only include base pay or regular wages. Exclude any payments specifically identified as 'Overtime,' 'Bonus,' 'Commission,' or other non-recurring, non-guaranteed payments. Your calculation should reflect the applicant's standard, predictable income.** If income is presented weekly, bi-weekly, or monthly, you must annualize it. Use the result from the cross-verification step if applicable.
-    4. Determine the household size. Infer from tax filing status (e.g., 'Single' is 1, 'Married Filing Jointly' is 2) and add any dependents listed. If household size cannot be determined, assume 1.
-    5. Calculate the 200% FPL threshold for the determined household size.
-    6. Compare the applicant's annual income to this threshold.
-    7. If the document is a letter confirming participation in a government assistance program like SNAP, TANF, WIC, or Medicaid, the applicant is automatically eligible regardless of income shown elsewhere. State this in your reasoning.
-    
-    Return your analysis ONLY in the specified JSON format.
+    4. Compare the applicant's annual income to the 200% FPL threshold of $${povertyThreshold.toLocaleString()} for their household size of ${householdSize}.
+    5. If the document is a letter confirming participation in a government assistance program like SNAP, TANF, WIC, or Medicaid, the applicant is automatically eligible regardless of income shown elsewhere. State this in your reasoning.
+
+    Return your analysis ONLY in the specified JSON format. Use the household size of ${householdSize} that was provided.
   `;
 
   const fileParts = (files as UploadedFile[]).map(file => ({
@@ -73,13 +83,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
           properties: {
             isEligible: { type: Type.BOOLEAN, description: "True if annual income is at or below 200% of FPL, or if they are on government assistance." },
             annualIncome: { type: Type.NUMBER, description: "The calculated total annual gross income based ONLY on regular pay (excluding overtime/bonuses). Null if not found." },
-            householdSize: { type: Type.NUMBER, description: "The determined household size. Null if not found." },
-            povertyLevel: { type: Type.NUMBER, description: "The 100% FPL amount for the household size. Null if household size is unknown." },
-            povertyThreshold: { type: Type.NUMBER, description: "The 200% FPL threshold for the household size. Null if household size is unknown." },
             reasoning: { type: Type.STRING, description: "A detailed step-by-step explanation of how the conclusion was reached, including the cross-verification process and specific exclusion of non-standard income." },
             documentType: { type: Type.STRING, description: "The type of document(s) identified (e.g., 'W-2 and Pay Stub', 'Tax Return 1040')." },
           },
-          required: ["isEligible", "annualIncome", "householdSize", "povertyLevel", "povertyThreshold", "reasoning", "documentType"]
+          required: ["isEligible", "annualIncome", "reasoning", "documentType"]
         },
       },
     });
@@ -92,9 +99,17 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const jsonText = geminiResponse.text.trim();
     const result = JSON.parse(jsonText);
 
+    // Add the household size and FPL calculations to the result
+    const enrichedResult = {
+      ...result,
+      householdSize,
+      povertyLevel,
+      povertyThreshold,
+    };
+
     console.log('Analysis successful, sending response');
     // Send the successful result back to the frontend
-    response.status(200).json(result as AnalysisResult);
+    response.status(200).json(enrichedResult as AnalysisResult);
 
   } catch (error) {
     console.error("API function error:", error);

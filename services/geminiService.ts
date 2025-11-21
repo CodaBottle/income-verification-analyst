@@ -1,13 +1,13 @@
 import type { UploadedFile, AnalysisResult } from "../types";
 
-export const analyzeDocuments = async (files: UploadedFile[]): Promise<AnalysisResult> => {
+export const analyzeDocuments = async (files: UploadedFile[], householdSize: number): Promise<AnalysisResult> => {
   try {
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ files }),
+      body: JSON.stringify({ files, householdSize }),
     });
 
     if (!response.ok) {
