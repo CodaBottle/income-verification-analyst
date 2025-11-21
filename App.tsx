@@ -4,7 +4,7 @@ import { FileUpload } from './components/FileUpload';
 import { ResultDisplay } from './components/ResultDisplay';
 import { Loader } from './components/Loader';
 import { analyzeDocuments } from './services/geminiService';
-import { fileToBase64 } from './utils/fileUtils';
+import { fileToBase64, validateFilesSize } from './utils/fileUtils';
 import type { AnalysisResult, UploadedFile } from './types';
 
 const App: React.FC = () => {
@@ -28,6 +28,14 @@ const App: React.FC = () => {
 
     if (householdSize < 1 || householdSize > 20) {
       setError("Please enter a valid household size (1-20).");
+      return;
+    }
+
+    // Validate file sizes before processing
+    const sizeValidation = validateFilesSize(files);
+    if (!sizeValidation.valid) {
+      const sizeMB = (sizeValidation.totalSize / (1024 * 1024)).toFixed(2);
+      setError(`Files are too large (${sizeMB} MB). Please reduce file size or number of files. Try uploading smaller images or fewer documents.`);
       return;
     }
 
