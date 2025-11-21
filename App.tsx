@@ -9,6 +9,7 @@ import type { AnalysisResult, UploadedFile } from './types';
 
 const App: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
+  const [householdSize, setHouseholdSize] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +26,11 @@ const App: React.FC = () => {
       return;
     }
 
+    if (householdSize < 1 || householdSize > 20) {
+      setError("Please enter a valid household size (1-20).");
+      return;
+    }
+
     setIsLoading(true);
     setResult(null);
     setError(null);
@@ -33,8 +39,8 @@ const App: React.FC = () => {
       const uploadedFiles: UploadedFile[] = await Promise.all(
         files.map(file => fileToBase64(file))
       );
-      
-      const analysisResult = await analyzeDocuments(uploadedFiles);
+
+      const analysisResult = await analyzeDocuments(uploadedFiles, householdSize);
       setResult(analysisResult);
     } catch (err) {
       console.error(err);
@@ -58,7 +64,26 @@ const App: React.FC = () => {
 
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 md:p-8">
           <FileUpload onFilesChange={handleFilesChange} disabled={isLoading} />
-          
+
+          <div className="mt-6">
+            <label htmlFor="household-size" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Number of Household Occupants
+            </label>
+            <input
+              type="number"
+              id="household-size"
+              min="1"
+              max="20"
+              value={householdSize}
+              onChange={(e) => setHouseholdSize(parseInt(e.target.value) || 1)}
+              disabled={isLoading}
+              className="block w-full md:w-48 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Enter the total number of people in the household
+            </p>
+          </div>
+
           <div className="mt-6 text-center">
             <button
               onClick={handleAnalyzeClick}
