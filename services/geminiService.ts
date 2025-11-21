@@ -11,8 +11,16 @@ export const analyzeDocuments = async (files: UploadedFile[], householdSize: num
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      // Try to parse as JSON first
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Request failed with status ${response.status}`);
+      } else {
+        // If not JSON, get the text response for better error messages
+        const errorText = await response.text();
+        throw new Error(`Request failed (${response.status}): ${errorText.substring(0, 100)}`);
+      }
     }
 
     const result: AnalysisResult = await response.json();
