@@ -1,8 +1,9 @@
 import type { UploadedFile, AnalysisResult } from "../types";
+import { authFetch } from "../App";
 
 export const analyzeDocuments = async (files: UploadedFile[], householdSize: number): Promise<AnalysisResult> => {
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await authFetch('/api/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

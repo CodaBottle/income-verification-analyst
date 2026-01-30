@@ -1,8 +1,4 @@
-
 import React, { useState, useCallback } from 'react';
-import { UploadIcon } from './icons/UploadIcon';
-import { FileIcon } from './icons/FileIcon';
-import { TrashIcon } from './icons/TrashIcon';
 
 interface FileUploadProps {
   onFilesChange: (files: File[]) => void;
@@ -19,7 +15,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesChange, disabled 
     setFiles(updatedFiles);
     onFilesChange(updatedFiles);
   };
-  
+
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -30,13 +26,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesChange, disabled 
     setFiles(updatedFiles);
     onFilesChange(updatedFiles);
   }, [files, onFilesChange, disabled]);
-  
+
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
     if (!disabled) setIsDragOver(true);
   };
-  
+
   const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -48,14 +44,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesChange, disabled 
     setFiles(updatedFiles);
     onFilesChange(updatedFiles);
   };
-  
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (
@@ -64,7 +59,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesChange, disabled 
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`relative block w-full rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 p-8 text-center hover:border-slate-400 dark:hover:border-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-colors duration-300 ${isDragOver ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+        className={`upload-zone ${isDragOver ? 'drag-over' : ''} ${disabled ? 'disabled' : ''}`}
       >
         <input
           type="file"
@@ -72,42 +67,48 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFilesChange, disabled 
           multiple
           onChange={handleFileChange}
           accept="image/*,application/pdf"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={disabled}
         />
-        <UploadIcon className="mx-auto h-12 w-12 text-slate-400" />
-        <span className="mt-2 block text-sm font-semibold text-slate-900 dark:text-white">
-          Drag and drop files here
-        </span>
-        <span className="block text-xs text-slate-500 dark:text-slate-400">
-          or click to select files
-        </span>
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">PDF, PNG, JPG supported</p>
+        <div className="upload-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+        <p style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+          Drop files here or click to upload
+        </p>
+        <p className="text-small mt-sm">
+          PDF, PNG, or JPG up to 3.5 MB
+        </p>
       </div>
 
       {files.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">Uploaded Files:</h3>
-          <ul className="mt-2 divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-md">
-            {files.map((file, index) => (
-              <li key={index} className="flex items-center justify-between py-2 pl-3 pr-4 text-sm">
-                <div className="flex w-0 flex-1 items-center">
-                  <FileIcon className="h-5 w-5 flex-shrink-0 text-slate-400" />
-                  <span className="ml-2 w-0 flex-1 truncate font-medium">{file.name}</span>
+        <div className="file-list">
+          {files.map((file, index) => (
+            <div key={index} className="file-item">
+              <div className="file-info">
+                <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                </svg>
+                <div style={{ minWidth: 0 }}>
+                  <div className="file-name">{file.name}</div>
+                  <div className="file-size">{formatBytes(file.size)}</div>
                 </div>
-                <div className="ml-4 flex flex-shrink-0 items-center space-x-4">
-                   <span className="text-slate-500 dark:text-slate-400">{formatBytes(file.size)}</span>
-                   <button
-                     onClick={() => removeFile(index)}
-                     disabled={disabled}
-                     className="text-slate-500 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
-                   >
-                     <TrashIcon className="h-5 w-5" />
-                   </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+              </div>
+              <button
+                onClick={() => removeFile(index)}
+                disabled={disabled}
+                className="file-remove"
+                aria-label="Remove file"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3,6 5,6 21,6" />
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
